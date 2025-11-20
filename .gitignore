@@ -1,0 +1,7 @@
+# Pastas do Visual Studio
+.vs/
+**/.vs/
+
+# Build output
+**/bin/
+**/obj/
