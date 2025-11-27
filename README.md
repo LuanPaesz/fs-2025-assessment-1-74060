@@ -27,10 +27,8 @@ The API supports:
 
 ## 2. Project Structure
 
-Solution root:
-
 fs-2025-assessment-1-74060/
- ├─ DublinBikes.Api/              # Main Web API project (.NET 8)
+ ├─ DublinBikes.Api/  # Main Web API project (.NET 8)
  │   ├─ Controllers/ or Endpoints/  # Minimal API endpoint mapping
  │   ├─ Models/                   # Station, GeoPosition, StationQueryParameters
  │   ├─ Dtos/                     # StationDto, StationsSummaryDto
