@@ -29,8 +29,6 @@ The API supports:
 
 Solution root:
 
-text:
-
 fs-2025-assessment-1-74060/
  ├─ DublinBikes.Api/              # Main Web API project (.NET 8)
  │   ├─ Controllers/ or Endpoints/  # Minimal API endpoint mapping
