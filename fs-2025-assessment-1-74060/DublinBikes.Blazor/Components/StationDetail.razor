@@ -1,0 +1,73 @@
+﻿@using DublinBikes.Blazor.Models
+
+@if (Station is null)
+{
+    <div class="alert alert-info">Select a station to see details.</div>
+}
+else
+{
+    <div class="station-detail p-3 border rounded">
+        <h2>@Station.Name</h2>
+        <p class="text-muted">@Station.Address</p>
+
+        <div class="mb-2">
+            <span class="fw-bold">Status:</span>
+            <span class="badge @(Station.Status == "OPEN" ? "bg-success" : "bg-secondary")">
+                @Station.Status
+            </span>
+        </div>
+
+        <div class="mb-2">
+            <span class="fw-bold">Capacity:</span>
+            <span> @Station.AvailableBikes / @Station.BikeStands bikes</span>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Occupancy</label>
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@OccupancyPercent">
+                <div class="progress-bar" style="width:@OccupancyPercent%">
+                    @OccupancyPercent%
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-2">
+            <span class="fw-bold">Last update:</span>
+            <span>@Station.LastUpdateLocal.LocalDateTime.ToString("g")</span>
+        </div>
+
+        <div class="mb-2">
+            <span class="fw-bold">Coordinates:</span>
+            <span>@Station.Latitude, @Station.Longitude</span>
+            @if (HasCoordinates)
+            {
+                <a class="ms-2" target="_blank"
+                   href="https://www.google.com/maps?q=@Station.Latitude,@Station.Longitude">
+                    View on map
+                </a>
+            }
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-primary me-2" @onclick="Edit">Edit</button>
+            <button class="btn btn-danger" @onclick="Delete">Delete</button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public StationDto? Station { get; set; }
+    [Parameter] public EventCallback OnEdit { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+
+    private int OccupancyPercent =>
+        Station is null || Station.BikeStands == 0
+            ? 0
+            : (int)Math.Round(Station.Occupancy * 100);
+
+    private bool HasCoordinates =>
+        Station is not null && Station.Latitude != 0 && Station.Longitude != 0;
+
+    private Task Edit() => OnEdit.InvokeAsync();
+    private Task Delete() => OnDelete.InvokeAsync();
+}

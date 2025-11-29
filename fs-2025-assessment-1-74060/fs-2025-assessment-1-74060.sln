@@ -5,6 +5,15 @@ VisualStudioVersion = 17.14.36705.20
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DublinBikes.api", "DublinBikes.pai\DublinBikes.api.csproj", "{36D74DD8-1E41-4489-BA0E-CBABFCCDB322}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DublinBikes.Blazor", "DublinBikes.Blazor\DublinBikes.Blazor.csproj", "{C63FED76-1CBB-4FC7-8AC5-5AE285CDE2E9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DublinBikes.Api.Tests", "DublinBikes.Api.Tests\DublinBikes.Api.Tests.csproj", "{11D09F91-B554-44B3-B981-1B569A174F23}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +24,14 @@ Global
 		{36D74DD8-1E41-4489-BA0E-CBABFCCDB322}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{36D74DD8-1E41-4489-BA0E-CBABFCCDB322}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{36D74DD8-1E41-4489-BA0E-CBABFCCDB322}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C63FED76-1CBB-4FC7-8AC5-5AE285CDE2E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C63FED76-1CBB-4FC7-8AC5-5AE285CDE2E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C63FED76-1CBB-4FC7-8AC5-5AE285CDE2E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C63FED76-1CBB-4FC7-8AC5-5AE285CDE2E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11D09F91-B554-44B3-B981-1B569A174F23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11D09F91-B554-44B3-B981-1B569A174F23}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11D09F91-B554-44B3-B981-1B569A174F23}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11D09F91-B554-44B3-B981-1B569A174F23}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

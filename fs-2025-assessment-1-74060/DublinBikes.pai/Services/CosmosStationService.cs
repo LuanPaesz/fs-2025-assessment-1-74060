@@ -1,14 +1,15 @@
 ﻿using System.Net;
-using System.Text.Json;
 using DublinBikes.Api.Dtos;
 using DublinBikes.Api.Models;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace DublinBikes.Api.Services
 {
-    // Classe que mapeia a secção CosmosDb do appsettings.json
+    /// <summary>
+    /// Binds CosmosDb configuration from appsettings.json ("CosmosDb" section).
+    /// </summary>
     public class CosmosOptions
     {
         public string ConnectionString { get; set; } = string.Empty;
@@ -17,8 +18,8 @@ namespace DublinBikes.Api.Services
     }
 
     /// <summary>
-    /// Implementação de IStationService usando Azure Cosmos DB.
-    /// V2 da API vai usar este serviço.
+    /// Station service implementation backed by Azure Cosmos DB.
+    /// This is used by API V2.
     /// </summary>
     public class CosmosStationService : IStationService
     {
@@ -38,27 +39,29 @@ namespace DublinBikes.Api.Services
             var db = client.CreateDatabaseIfNotExistsAsync(opts.DatabaseName).GetAwaiter().GetResult();
             var container = db.Database.CreateContainerIfNotExistsAsync(
                 id: opts.ContainerName,
-                partitionKeyPath: "/number"    // usamos o número da estação como partition key
+                partitionKeyPath: "/number"    // partition key = station number
             ).GetAwaiter().GetResult();
 
             _container = container.Container;
         }
 
+        /// <summary>
+        /// Returns paged / filtered / sorted stations from CosmosDb.
+        /// For simplicity we load all items then filter in memory.
+        /// Results are cached for 5 minutes.
+        /// </summary>
         public async Task<IReadOnlyList<Station>> GetStationsAsync(StationQueryParameters parameters)
         {
-            // ---------- CACHE: tenta pegar do cache primeiro ----------
+            // ---------- CACHE ----------
             var cacheKey = CachePrefix +
                            $"{parameters.Status}_{parameters.MinBikes}_{parameters.SearchTerm}_{parameters.Sort}_{parameters.Dir}_{parameters.Page}_{parameters.PageSize}";
 
             if (_cache.TryGetValue(cacheKey, out IReadOnlyList<Station>? cached))
             {
-                // Se já está em cache (resultado de outra chamada idêntica),
-                // voltamos direto, sem ir ao Cosmos.
                 return cached!;
             }
 
-            // ---------- BUSCA NO COSMOS ----------
-            // Para simplificar, buscamos tudo e filtramos em memória.
+            // ---------- LOAD FROM COSMOS ----------
             var query = new QueryDefinition("SELECT * FROM c");
             var iterator = _container.GetItemQueryIterator<Station>(query);
 
@@ -72,7 +75,7 @@ namespace DublinBikes.Api.Services
 
             IEnumerable<Station> filtered = allStations;
 
-            // Filtro: status=OPEN|CLOSED
+            // Filter: status=OPEN|CLOSED
             if (!string.IsNullOrWhiteSpace(parameters.Status))
             {
                 var status = parameters.Status.Trim();
@@ -80,13 +83,13 @@ namespace DublinBikes.Api.Services
                     s.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
             }
 
-            // Filtro: minBikes
+            // Filter: minBikes
             if (parameters.MinBikes.HasValue)
             {
                 filtered = filtered.Where(s => s.AvailableBikes >= parameters.MinBikes.Value);
             }
 
-            // Busca: q = SearchTerm em name/address
+            // Search: q over name/address
             if (!string.IsNullOrWhiteSpace(parameters.SearchTerm))
             {
                 var term = parameters.SearchTerm.Trim();
@@ -95,7 +98,7 @@ namespace DublinBikes.Api.Services
                     s.Address.Contains(term, StringComparison.OrdinalIgnoreCase));
             }
 
-            // Sorting: name | availableBikes | occupancy
+            // Sorting
             filtered = ApplySorting(filtered, parameters.Sort, parameters.Dir);
 
             // Paging
@@ -108,13 +111,13 @@ namespace DublinBikes.Api.Services
 
             var result = filtered.ToList().AsReadOnly();
 
-            // ---------- GRAVA EM CACHE POR 5 MINUTOS ----------
+            // ---------- CACHE FOR 5 MINUTES ----------
             _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
 
             return result;
         }
 
-        private static IEnumerable<Station> ApplySorting(IEnumerable<Station> query, string sort, string dir)
+        private static IEnumerable<Station> ApplySorting(IEnumerable<Station> query, string? sort, string? dir)
         {
             bool desc = string.Equals(dir, "desc", StringComparison.OrdinalIgnoreCase);
 
@@ -145,7 +148,7 @@ namespace DublinBikes.Api.Services
 
         public async Task<Station?> GetStationByNumberAsync(int number)
         {
-            // usamos uma query porque o id é string e o partition key é number
+            // We use a query because id is string and partition key is number
             var query = new QueryDefinition(
                 "SELECT * FROM c WHERE c.number = @number")
                 .WithParameter("@number", number);
@@ -160,10 +163,11 @@ namespace DublinBikes.Api.Services
 
         public async Task AddStationAsync(Station newStation)
         {
-            // garantir id string baseado no número
             newStation.Id = newStation.Number.ToString();
 
             await _container.CreateItemAsync(newStation, new PartitionKey(newStation.Number));
+
+            InvalidateCache();
         }
 
         public async Task<bool> UpdateStationAsync(int number, Station updatedStation)
@@ -173,6 +177,7 @@ namespace DublinBikes.Api.Services
             try
             {
                 await _container.UpsertItemAsync(updatedStation, new PartitionKey(number));
+                InvalidateCache();
                 return true;
             }
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
@@ -205,7 +210,9 @@ namespace DublinBikes.Api.Services
             return summary;
         }
 
-        // Método opcional para "semear" o Cosmos com dados do FileStationService
+        /// <summary>
+        /// Seeds CosmosDb with the stations coming from the file-based service.
+        /// </summary>
         public async Task SeedAsync(IEnumerable<Station> stations)
         {
             foreach (var station in stations)
@@ -213,6 +220,33 @@ namespace DublinBikes.Api.Services
                 station.Id = station.Number.ToString();
                 await _container.UpsertItemAsync(station, new PartitionKey(station.Number));
             }
+
+            InvalidateCache();
+        }
+
+        /// <summary>
+        /// Deletes a station from CosmosDb by station number.
+        /// </summary>
+        public async Task<bool> DeleteAsync(int number)
+        {
+            try
+            {
+                await _container.DeleteItemAsync<Station>(
+                    id: number.ToString(),
+                    partitionKey: new PartitionKey(number));
+
+                InvalidateCache();
+                return true;
+            }
+            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+        }
+
+        private void InvalidateCache()
+        {
+            (_cache as MemoryCache)?.Compact(1.0);
         }
     }
 }

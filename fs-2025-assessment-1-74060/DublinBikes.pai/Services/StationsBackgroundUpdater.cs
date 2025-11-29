@@ -3,9 +3,9 @@
 namespace DublinBikes.Api.Services
 {
     /// <summary>
-    /// Serviço em background que roda junto com a API
-    /// e periodicamente chama o FileStationService para atualizar
-    /// as estações com valores aleatórios.
+    /// Background service that runs alongside the API
+    /// and periodically calls the FileStationService to update
+    /// the stations with random values.
     /// </summary>
     public class StationsBackgroundUpdater : BackgroundService
     {

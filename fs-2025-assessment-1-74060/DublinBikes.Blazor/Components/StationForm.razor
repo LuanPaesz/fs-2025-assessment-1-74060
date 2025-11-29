@@ -1,0 +1,57 @@
+﻿@using DublinBikes.Blazor.Models
+
+<EditForm Model="Model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-2">
+        <label class="form-label">Number</label>
+        <InputNumber class="form-control" @bind-Value="Model.Number" disabled="@IsEdit" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Name</label>
+        <InputText class="form-control" @bind-Value="Model.Name" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Address</label>
+        <InputText class="form-control" @bind-Value="Model.Address" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Total stands</label>
+        <InputNumber class="form-control" @bind-Value="Model.BikeStands" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Available bikes</label>
+        <InputNumber class="form-control" @bind-Value="Model.AvailableBikes" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Available stands</label>
+        <InputNumber class="form-control" @bind-Value="Model.AvailableBikeStands" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Status</label>
+        <InputSelect class="form-select" @bind-Value="Model.Status">
+            <option value="OPEN">OPEN</option>
+            <option value="CLOSED">CLOSED</option>
+        </InputSelect>
+    </div>
+
+    <button class="btn btn-success me-2" type="submit">Save</button>
+    <button class="btn btn-secondary" type="button" @onclick="Cancel">Cancel</button>
+</EditForm>
+
+@code {
+    [Parameter] public StationDto Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public EventCallback<StationDto> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Task HandleValidSubmit() => OnSave.InvokeAsync(Model);
+    private Task Cancel() => OnCancel.InvokeAsync();
+}

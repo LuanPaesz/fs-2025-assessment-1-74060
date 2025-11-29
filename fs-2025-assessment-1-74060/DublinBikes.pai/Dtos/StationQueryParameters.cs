@@ -13,14 +13,14 @@
         public int PageSize { get; set; } = 20;
         public void Normalize()
         {
-            // sort só pode ser name, availableBikes ou occupancy
+            // //sort can only be name, availableBikes, or occupancy
             var allowedSort = new[] { "name", "availablebikes", "occupancy" };
             if (!allowedSort.Contains(Sort.ToLowerInvariant()))
             {
                 Sort = "name";
             }
 
-            // dir só pode ser asc ou desc
+            // dir can only be asc or desc
             var allowedDir = new[] { "asc", "desc" };
             if (!allowedDir.Contains(Dir.ToLowerInvariant()))
             {

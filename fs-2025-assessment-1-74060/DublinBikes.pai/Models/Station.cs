@@ -5,8 +5,8 @@ namespace DublinBikes.Api.Models
 {
     public class Station
     {
-        [JsonProperty("id")]              // Usado pelo Cosmos / Newtonsoft
-        [JsonPropertyName("id")]          // Usado pelo System.Text.Json
+        [JsonProperty("id")]              // Used for Cosmos / Newtonsoft
+        [JsonPropertyName("id")]          // Used for System.Text.Json
         public string Id { get; set; } = string.Empty;
 
         [JsonProperty("number")]

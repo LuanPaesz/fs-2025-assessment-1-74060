@@ -1,0 +1,99 @@
+﻿@using DublinBikes.Blazor.Models
+
+<table class="table table-hover station-list" aria-label="Stations list">
+    <thead>
+        <tr>
+            <th scope="col">
+                <button class="btn btn-link p-0" @onclick="@(() => ChangeSort("name"))">
+                    Name @(Sort == "name" ? SortIcon : "")
+                </button>
+            </th>
+            <th scope="col">Address</th>
+            <th scope="col">
+                <button class="btn btn-link p-0" @onclick="@(() => ChangeSort("availableBikes"))">
+                    Available bikes @(Sort == "availableBikes" ? SortIcon : "")
+                </button>
+            </th>
+            <th scope="col">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Stations is null || Stations.Count == 0)
+        {
+            <tr>
+                <td colspan="4">No stations found.</td>
+            </tr>
+        }
+        else
+        {
+            foreach (var s in Stations)
+            {
+                <tr tabindex="0"
+                    class="station-row @(s.Number == SelectedNumber ? "table-primary" : "")"
+                    @onclick="@(() => SelectStation(s.Number))"
+                    @onkeypress="(e => OnKeyPress(e, s.Number))">
+                    <td>@s.Name</td>
+                    <td>@s.Address</td>
+                    <td>@s.AvailableBikes / @s.BikeStands</td>
+                    <td>
+                        <span class="badge @(s.Status == "OPEN" ? "bg-success" : "bg-secondary")">
+                            @s.Status
+                        </span>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<div class="d-flex justify-content-between align-items-center">
+    <button class="btn btn-outline-secondary" @onclick="PrevPage" disabled="@(Page <= 1)">Previous</button>
+    <span>Page @Page</span>
+    <button class="btn btn-outline-secondary" @onclick="NextPage">Next</button>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<StationDto>? Stations { get; set; }
+    [Parameter] public int? SelectedNumber { get; set; }
+
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public string Sort { get; set; } = "name";
+    [Parameter] public string Dir { get; set; } = "asc";
+
+    [Parameter] public EventCallback<int> OnSelectStation { get; set; }
+    [Parameter] public EventCallback<(string sort, string dir)> OnSortChanged { get; set; }
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+
+    private string SortIcon => Dir == "asc" ? "↑" : "↓";
+
+    private Task SelectStation(int number) => OnSelectStation.InvokeAsync(number);
+
+    private async Task ChangeSort(string sort)
+    {
+        string newDir = Sort == sort && Dir == "asc" ? "desc" : "asc";
+        Sort = sort;
+        Dir = newDir;
+        await OnSortChanged.InvokeAsync((Sort, Dir));
+    }
+
+    private async Task PrevPage()
+    {
+        if (Page > 1)
+        {
+            await OnPageChanged.InvokeAsync(Page - 1);
+        }
+    }
+
+    private async Task NextPage()
+    {
+        await OnPageChanged.InvokeAsync(Page + 1);
+    }
+
+    private async Task OnKeyPress(KeyboardEventArgs e, int number)
+    {
+        if (e.Key == "Enter" || e.Key == " ")
+        {
+            await SelectStation(number);
+        }
+    }
+}

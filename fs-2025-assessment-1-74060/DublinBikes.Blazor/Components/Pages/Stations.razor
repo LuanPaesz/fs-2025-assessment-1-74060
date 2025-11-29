@@ -1,0 +1,236 @@
+﻿@page "/stations"
+@using Microsoft.AspNetCore.Components.Web
+
+@using DublinBikes.Blazor.Components
+@using DublinBikes.Blazor.Models
+@using DublinBikes.Blazor.Services
+@inject StationsApiClient ApiClient
+
+<h1>Dublin Bikes – Stations</h1>
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        @ErrorMessage
+    </div>
+}
+
+<div class="row">
+    <div class="col-12 col-lg-4 mb-3">
+        <StationFilters OnFiltersChanged="OnFiltersChanged" />
+        @if (Summary is not null)
+        {
+            <div class="mt-3 p-2 border rounded">
+                <h5>Summary</h5>
+                <p>Total stations: @Summary.TotalStations</p>
+                <p>Total stands: @Summary.TotalBikeStands</p>
+                <p>Available bikes: @Summary.TotalAvailableBikes</p>
+                <p>Open: @Summary.OpenStations | Closed: @Summary.ClosedStations</p>
+            </div>
+        }
+    </div>
+
+    <div class="col-12 col-lg-4 mb-3">
+        <h2 class="h4">Stations</h2>
+
+        @if (IsLoading)
+        {
+            <p>Loading stations...</p>
+        }
+        else
+        {
+            <StationList Stations="StationList"
+                         SelectedNumber="SelectedNumber"
+                         Page="Parameters.Page"
+                         Sort="Parameters.Sort"
+                         Dir="Parameters.Dir"
+                         OnSelectStation="OnSelectStation"
+                         OnSortChanged="OnSortChanged"
+                         OnPageChanged="OnPageChanged" />
+        }
+
+        <button class="btn btn-success mt-3" @onclick="StartCreate">New station</button>
+    </div>
+
+    <div class="col-12 col-lg-4 mb-3">
+        <h2 class="h4">Details</h2>
+
+        @if (IsEditing)
+        {
+            <StationForm Model="EditModel"
+                         IsEdit="IsEditMode"
+                         OnSave="OnSaveStation"
+                         OnCancel="CancelEdit" />
+        }
+        else
+        {
+            <StationDetail Station="SelectedStation"
+                           OnEdit="StartEdit"
+                           OnDelete="ConfirmDelete" />
+        }
+    </div>
+</div>
+
+@code {
+    // Renamed property to avoid CS0542 error
+    private List<StationDto> StationList { get; set; } = new();
+    private StationDto? SelectedStation { get; set; }
+    private int? SelectedNumber => SelectedStation?.Number;
+
+    private StationsSummaryDto? Summary { get; set; }
+
+    private StationQueryParameters Parameters { get; set; } = new();
+    private bool IsLoading { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    private bool IsEditing { get; set; }
+    private bool IsEditMode { get; set; }
+    private StationDto EditModel { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+
+            var result = await ApiClient.GetStationsAsync(Parameters);
+            StationList = result.ToList();
+
+            Summary = await ApiClient.GetSummaryAsync();
+            if (SelectedNumber.HasValue)
+            {
+                SelectedStation = StationList.FirstOrDefault(s => s.Number == SelectedNumber.Value);
+            }
+            else
+            {
+                SelectedStation = StationList.FirstOrDefault();
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to load stations: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OnFiltersChanged(StationQueryParameters filters)
+    {
+        Parameters.SearchTerm = filters.SearchTerm;
+        Parameters.Status = filters.Status;
+        Parameters.MinBikes = filters.MinBikes;
+        Parameters.Page = 1; // reset page
+        await LoadDataAsync();
+    }
+
+    private async Task OnSortChanged((string sort, string dir) sortInfo)
+    {
+        Parameters.Sort = sortInfo.sort;
+        Parameters.Dir = sortInfo.dir;
+        Parameters.Page = 1;
+        await LoadDataAsync();
+    }
+
+    private async Task OnPageChanged(int newPage)
+    {
+        Parameters.Page = newPage;
+        await LoadDataAsync();
+    }
+
+    private async Task OnSelectStation(int number)
+    {
+        SelectedStation = await ApiClient.GetStationAsync(number);
+        StateHasChanged();
+    }
+
+    // CRUD
+
+    private void StartCreate()
+    {
+        IsEditing = true;
+        IsEditMode = false;
+        EditModel = new StationDto
+        {
+            Status = "OPEN",
+            LastUpdateLocal = DateTimeOffset.Now
+        };
+    }
+
+    private void StartEdit()
+    {
+        if (SelectedStation is null) return;
+
+        IsEditing = true;
+        IsEditMode = true;
+        EditModel = new StationDto
+        {
+            Number = SelectedStation.Number,
+            Name = SelectedStation.Name,
+            Address = SelectedStation.Address,
+            BikeStands = SelectedStation.BikeStands,
+            AvailableBikes = SelectedStation.AvailableBikes,
+            AvailableBikeStands = SelectedStation.AvailableBikeStands,
+            Status = SelectedStation.Status,
+            LastUpdateLocal = SelectedStation.LastUpdateLocal,
+            Latitude = SelectedStation.Latitude,
+            Longitude = SelectedStation.Longitude,
+            Occupancy = SelectedStation.Occupancy
+        };
+    }
+
+    private async Task OnSaveStation(StationDto station)
+    {
+        try
+        {
+            if (IsEditMode)
+            {
+                await ApiClient.UpdateStationAsync(station.Number, station);
+            }
+            else
+            {
+                var created = await ApiClient.CreateStationAsync(station);
+                if (created is not null)
+                {
+                    SelectedStation = created;
+                }
+            }
+
+            IsEditing = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to save station: {ex.Message}";
+        }
+    }
+
+    private void CancelEdit()
+    {
+        IsEditing = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (SelectedStation is null) return;
+
+        // (Optional: perguntar confirmação com JS)
+        try
+        {
+            await ApiClient.DeleteStationAsync(SelectedStation.Number);
+            SelectedStation = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to delete station: {ex.Message}";
+        }
+    }
+}

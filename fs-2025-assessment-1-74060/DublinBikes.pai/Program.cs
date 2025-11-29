@@ -9,24 +9,24 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Cache em memória
+// Cache in memory
 builder.Services.AddMemoryCache();
 
-// Registrar nosso serviço baseado em ficheiro (V1)
+// Registers the file-based service (V1)
 builder.Services.AddSingleton<FileStationService>();
 builder.Services.AddSingleton<IStationService>(sp =>
     sp.GetRequiredService<FileStationService>());
 
-// Registrar background service
+// Background service for random updates
 builder.Services.AddHostedService<StationsBackgroundUpdater>();
 
-// Lê a seção CosmosDb do appsettings.json para CosmosOptions
+// Read the CosmosDb section from appsettings.json
 builder.Services.Configure<CosmosOptions>(
     builder.Configuration.GetSection("CosmosDb"));
 
-// Registra o serviço V2 baseado em Cosmos
-builder.Services.AddSingleton<CosmosStationService>();
+// Registers the V2 service based on CosmosDb
 
+builder.Services.AddSingleton<CosmosStationService>();
 
 var app = builder.Build();
 
@@ -37,6 +37,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 
 // ----------------- V1 - JSON / FILE -----------------
 
@@ -62,6 +63,7 @@ app.MapGet("/api/v1/stations", async (
         PageSize = pageSize ?? 20
     };
 
+    // ensures valid values (sort, dir, page, pageSize)
     parameters.Normalize();
 
     var stations = await service.GetStationsAsync(parameters);
@@ -123,6 +125,8 @@ app.MapPost("/api/v1/stations", async (
 .WithName("CreateStationV1")
 .Produces<StationDto>(StatusCodes.Status201Created);
 
+
+
 // PUT /api/v1/stations/{number}
 app.MapPut("/api/v1/stations/{number:int}", async (
     [FromServices] IStationService service,
@@ -154,8 +158,27 @@ app.MapPut("/api/v1/stations/{number:int}", async (
 .Produces(StatusCodes.Status204NoContent)
 .Produces(StatusCodes.Status404NotFound);
 
+// DELETE /api/v1/stations/{number}
+app.MapDelete("/api/v1/stations/{number:int}", async (
+    [FromServices] IStationService service,
+    int number) =>
+{
+    var deleted = await service.DeleteAsync(number);
+
+    if (!deleted)
+    {
+        return Results.NotFound(new { message = $"Station {number} not found" });
+    }
+
+    return Results.NoContent();
+})
+.WithName("DeleteStationV1")
+.Produces(StatusCodes.Status204NoContent)
+.Produces(StatusCodes.Status404NotFound);
+
 // ----------------- V2 - COSMOS DB -----------------
 
+// GET /api/v2/stations
 app.MapGet("/api/v2/stations", async (
     [FromServices] CosmosStationService cosmosService,
     [FromQuery] string? status,
@@ -177,6 +200,9 @@ app.MapGet("/api/v2/stations", async (
         PageSize = pageSize ?? 20
     };
 
+    // same normalization as V1 (sort, dir, page, pageSize)
+    parameters.Normalize();
+
     var stations = await cosmosService.GetStationsAsync(parameters);
     var dtos = stations.Select(StationDto.FromModel);
     return Results.Ok(dtos);
@@ -184,6 +210,7 @@ app.MapGet("/api/v2/stations", async (
 .WithName("GetStationsV2")
 .Produces<IEnumerable<StationDto>>(StatusCodes.Status200OK);
 
+// GET /api/v2/stations/{number}
 app.MapGet("/api/v2/stations/{number:int}", async (
     [FromServices] CosmosStationService cosmosService,
     int number) =>
@@ -198,6 +225,7 @@ app.MapGet("/api/v2/stations/{number:int}", async (
 .Produces<StationDto>(StatusCodes.Status200OK)
 .Produces(StatusCodes.Status404NotFound);
 
+// GET /api/v2/stations/summary
 app.MapGet("/api/v2/stations/summary", async (
     [FromServices] CosmosStationService cosmosService) =>
 {
@@ -207,6 +235,7 @@ app.MapGet("/api/v2/stations/summary", async (
 .WithName("GetStationsSummaryV2")
 .Produces<StationsSummaryDto>(StatusCodes.Status200OK);
 
+// POST /api/v2/stations
 app.MapPost("/api/v2/stations", async (
     [FromServices] CosmosStationService cosmosService,
     StationDto dto) =>
@@ -232,6 +261,7 @@ app.MapPost("/api/v2/stations", async (
 .WithName("CreateStationV2")
 .Produces<StationDto>(StatusCodes.Status201Created);
 
+// PUT /api/v2/stations/{number}
 app.MapPut("/api/v2/stations/{number:int}", async (
     [FromServices] CosmosStationService cosmosService,
     int number,
@@ -261,7 +291,23 @@ app.MapPut("/api/v2/stations/{number:int}", async (
 .Produces(StatusCodes.Status204NoContent)
 .Produces(StatusCodes.Status404NotFound);
 
-// Endpoint DEV para popular o Cosmos com os dados do ficheiro (V1)
+// DELETE /api/v2/stations/{number}
+app.MapDelete("/api/v2/stations/{number:int}", async (
+    [FromServices] CosmosStationService cosmosService,
+    int number) =>
+{
+    var deleted = await cosmosService.DeleteAsync(number);
+
+    if (!deleted)
+        return Results.NotFound(new { message = $"Station {number} not found" });
+
+    return Results.NoContent();
+})
+.WithName("DeleteStationV2")
+.Produces(StatusCodes.Status204NoContent)
+.Produces(StatusCodes.Status404NotFound);
+
+// DEV endpoint to populate Cosmos with data from the file (V1)
 app.MapPost("/api/admin/seed-cosmos", async (
     [FromServices] FileStationService fileService,
     [FromServices] CosmosStationService cosmosService) =>
@@ -272,6 +318,5 @@ app.MapPost("/api/admin/seed-cosmos", async (
     return Results.Ok(new { message = $"Seeded {allStations.Count} stations into Cosmos." });
 });
 
+
 app.Run();
-
-
