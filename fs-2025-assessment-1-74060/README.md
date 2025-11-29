@@ -121,7 +121,7 @@ Store the resulting list of stations for 5 minutes.
 
 This reduces recomputation for repeated queries and matches the assignment requirement for caching.
 
-Postman Collection
+-**5 Postman Collection
 
 A Postman collection called “DublinBikes API” is organised as:
 
@@ -157,7 +157,7 @@ Admin/
 
 POST Seed Cosmos
 
-Each request includes basic tests checking:
+- **6 Each request includes basic tests checking:
 
 Status code (200 / 201 / 204 / 404 / 409).
 
@@ -171,7 +171,7 @@ Import the Postman collection.
 
 Select the DublinBikes API collection → Run to execute all tests.
 
-Tests
+- **7 - Tests
 
 A project DublinBikes.Api.Tests (xUnit) covers:
 
